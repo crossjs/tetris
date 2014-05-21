@@ -1,0 +1,382 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title></title>
+<script>
+var Shape = function(index) {
+  this.index = index;
+  return this.init();
+};
+
+Shape.prototype = {
+
+  shapes: [
+    // 横
+    [{
+      x: 0,
+      y: 0
+    }, {
+      x: 1,
+      y: 0
+    }, {
+      x: 2,
+      y: 0
+    }, {
+      x: 3,
+      y: 0
+    }],
+    // 田
+    [{
+      x: 0,
+      y: 0
+    }, {
+      x: 1,
+      y: 0
+    }, {
+      x: 0,
+      y: 1
+    }, {
+      x: 1,
+      y: 1
+    }],
+    // N
+    [{
+      x: 1,
+      y: 0
+    }, {
+      x: 0,
+      y: 1
+    }, {
+      x: 1,
+      y: 1
+    }, {
+      x: 0,
+      y: 2
+    }],
+    // 反N
+    [{
+      x: 0,
+      y: 0
+    }, {
+      x: 0,
+      y: 1
+    }, {
+      x: 1,
+      y: 1
+    }, {
+      x: 1,
+      y: 2
+    }],
+    // 7
+    [{
+      x: 0,
+      y: 0
+    }, {
+      x: 1,
+      y: 0
+    }, {
+      x: 1,
+      y: 1
+    }, {
+      x: 1,
+      y: 2
+    }],
+    // 反7
+    [{
+      x: 0,
+      y: 0
+    }, {
+      x: 1,
+      y: 0
+    }, {
+      x: 0,
+      y: 1
+    }, {
+      x: 0,
+      y: 2
+    }],
+    // 凸
+    [{
+      x: 1,
+      y: 0
+    }, {
+      x: 0,
+      y: 1
+    }, {
+      x: 1,
+      y: 1
+    }, {
+      x: 2,
+      y: 1
+    }]
+  ],
+
+  init: function() {
+    this.create();
+
+    return this;
+  },
+
+  create: function() {
+    var index = this.index !== undefined ?
+                this.index : ((Math.random() * 7) | 0);
+
+    this.shape = this.shapes[index];
+
+    this.center();
+
+    this.render();
+  },
+
+  center: function() {
+    this.dimens();
+
+    var w = this.w;
+
+    this.shape.forEach(function (unit) {
+      unit.x += scene.width / 2 - w / 2 | 0;
+    });
+  },
+
+  dimens: function() {
+    var xs = [],
+        ys = [];
+
+    this.shape.forEach(function (unit) {
+      xs.push(unit.x);
+      ys.push(unit.y);
+    });
+
+    this.w = Math.max.apply(null, xs) - Math.min.apply(null, xs) + 1;
+    this.h = Math.max.apply(null, ys) - Math.min.apply(null, ys) + 1;
+  },
+
+  coords: function() {
+    var x = 0,
+        y = 0;
+
+    this.shape.forEach(function (unit) {
+      x += unit.x;
+      y += unit.y;
+    });
+
+    this.x = Math.round(x / 4);
+    this.y = Math.round(y / 4);
+
+    this.xFix = (x % 4) === 2 ? -1 : 0;
+  },
+
+  rotate: function(clockwise) {
+    this.coords();
+
+    var x = this.x,
+        y = this.y,
+        xFix = this.xFix,
+
+        shape = [],
+        valid = true;
+
+    this.shape.forEach(function (unit) {
+      var _x = unit.x,
+          _y = unit.y;
+
+      var nx = x - (_y - y) + xFix,
+          ny = y + (_x - x);
+
+      if (nx < 0 || ny < 0 || nx >= scene.width || ny >= scene.height) {
+        valid = false;
+        return false;
+      }
+
+      shape.push({
+        x: nx,
+        y: ny
+      });
+    });
+
+    if (valid) {
+      this.erase();
+
+      this.shape = shape;
+
+      this.render();
+    }
+  },
+
+  movedown: function () {
+    var valid = true;
+
+    this.shape.forEach(function (unit) {
+      if (unit.y >= scene.height - 1) {
+        valid = false;
+        return false;
+      }
+    });
+
+    if (valid) {
+      this.erase();
+
+      this.shape.forEach(function (unit) {
+        unit.y++;
+      });
+
+      this.render();
+    }
+  },
+
+  moveleft: function () {
+    var valid = true;
+
+    this.shape.forEach(function (unit) {
+      if (unit.x <= 0) {
+        valid = false;
+        return false;
+      }
+    });
+
+    if (valid) {
+      this.erase();
+
+      this.shape.forEach(function (unit) {
+        unit.x--;
+      });
+
+      this.render();
+    }
+  },
+
+  moveright: function () {
+    var valid = true;
+
+    this.shape.forEach(function (unit) {
+      if (unit.x >= scene.width - 1) {
+        valid = false;
+        return false;
+      }
+    });
+
+    if (valid) {
+      this.erase();
+
+      this.shape.forEach(function (unit) {
+        unit.x++;
+      });
+
+      this.render();
+    }
+  },
+
+  erase: function () {
+    scene.erase(this.shape);
+  },
+
+  render: function () {
+    scene.render(this.shape);
+  }
+
+};
+
+var Scene = function() {
+  return this.init();
+}
+
+Scene.prototype = {
+
+  init: function(width, height) {
+    var table = document.getElementById('sceneTable'),
+        i, j,
+        tbody = document.createElement('tbody'),
+        tr, td;
+
+    width || (width = 10);
+    height || (height = 20);
+
+    for (i = 0; i < height; i++) {
+      tr = tbody.insertRow();
+      for (j = 0; j < width; j++) {
+        tr.insertCell();
+      }
+    }
+
+    table.appendChild(tbody);
+
+    this.rows = tbody.rows;
+
+    this.width = width;
+    this.height = height;
+
+    return this;
+  },
+
+  timer: function () {
+    setInterval(function () {
+      if (shape) {
+        shape.movedown();
+      }
+    }, 1000)
+  },
+
+  erase: function(shape) {
+    var scene = this;
+
+    shape.forEach(function (unit) {
+      if (unit.x >= 0 && unit.y >= 0) {
+        scene.rows[unit.y].cells[unit.x].style.backgroundColor = 'transparent';
+      }
+    });
+  },
+
+  render: function(shape) {
+    var scene = this,
+        colors = ['red', 'green', 'blue', 'black'], i = 0;
+
+    shape.forEach(function (unit) {
+      if (unit.x >= 0 && unit.y >= 0) {
+        scene.rows[unit.y].cells[unit.x].style.backgroundColor = colors[i++];
+      }
+    });
+  }
+
+};
+
+// var scene = document.getElementById('scene');
+
+var shape, scene;
+
+window.onload = function () {
+  scene = new Scene();
+  shape = new Shape();
+};
+
+document.onkeydown = function keyControl(e) {
+  if (!shape) {
+    shape = new Shape(2);
+  }
+
+  switch(e.keyCode){
+    case 37:
+      shape.moveleft();
+      break;
+    case 38:
+      shape.rotate();
+      break;
+    case 39:
+      shape.moveright();
+      break;
+    case 40:
+      shape.movedown();
+      break;
+  }
+
+  // console.log(shape.shape[0], shape.shape[1], shape.shape[2], shape.shape[3], shape.x, shape.y);
+};
+</script>
+</head>
+<body>
+<input type="button" value="begin" onclick="begin(this);"/>
+Score: <span id="score"> 0</span>
+
+<table id="sceneTable" cellpadding="10" border="1"></table>
+</body>
+</html>
