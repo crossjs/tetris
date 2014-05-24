@@ -4,379 +4,545 @@
 <meta charset="utf-8">
 <title></title>
 <script>
-var Shape = function(index) {
-  this.index = index;
-  return this.init();
-};
+(function (window, undefined) {
+  var Class = {
 
-Shape.prototype = {
+    create: function (proto) {
+      var Dummy = function () {
+        this.init.apply(this, arguments);
+      };
 
-  shapes: [
-    // 横
-    [{
-      x: 0,
-      y: 0
-    }, {
-      x: 1,
-      y: 0
-    }, {
-      x: 2,
-      y: 0
-    }, {
-      x: 3,
-      y: 0
-    }],
-    // 田
-    [{
-      x: 0,
-      y: 0
-    }, {
-      x: 1,
-      y: 0
-    }, {
-      x: 0,
-      y: 1
-    }, {
-      x: 1,
-      y: 1
-    }],
-    // N
-    [{
-      x: 1,
-      y: 0
-    }, {
-      x: 0,
-      y: 1
-    }, {
-      x: 1,
-      y: 1
-    }, {
-      x: 0,
-      y: 2
-    }],
-    // 反N
-    [{
-      x: 0,
-      y: 0
-    }, {
-      x: 0,
-      y: 1
-    }, {
-      x: 1,
-      y: 1
-    }, {
-      x: 1,
-      y: 2
-    }],
-    // 7
-    [{
-      x: 0,
-      y: 0
-    }, {
-      x: 1,
-      y: 0
-    }, {
-      x: 1,
-      y: 1
-    }, {
-      x: 1,
-      y: 2
-    }],
-    // 反7
-    [{
-      x: 0,
-      y: 0
-    }, {
-      x: 1,
-      y: 0
-    }, {
-      x: 0,
-      y: 1
-    }, {
-      x: 0,
-      y: 2
-    }],
-    // 凸
-    [{
-      x: 1,
-      y: 0
-    }, {
-      x: 0,
-      y: 1
-    }, {
-      x: 1,
-      y: 1
-    }, {
-      x: 2,
-      y: 1
-    }]
-  ],
+      proto || (proto = {});
 
-  init: function() {
-    this.create();
+      proto.init || (proto.init = function () {});
 
-    return this;
-  },
+      Dummy.prototype = proto;
 
-  create: function() {
-    var index = this.index !== undefined ?
-                this.index : ((Math.random() * 7) | 0);
+      return Dummy;
+    }
 
-    this.shape = this.shapes[index];
+  };
 
-    this.center();
+  var Shape = Class.create({
 
-    this.render();
-  },
+    shapes: [
+      // 横
+      [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 2, y: 0 }, { x: 3, y: 0 }],
+      // 田
+      [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }],
+      // N
+      [{ x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }, { x: 0, y: 2 }],
+      // 反N
+      [{ x: 0, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }, { x: 1, y: 2 }],
+      // 7
+      [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }, { x: 1, y: 2 }],
+      // 反7
+      [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: 2 }],
+      // 凸
+      [{ x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }, { x: 2, y: 1 }]
+    ],
 
-  center: function() {
-    this.dimens();
+    init: function (stage) {
+      this.stage = stage;
 
-    var w = this.w;
+      this.create();
+    },
 
-    this.shape.forEach(function (unit) {
-      unit.x += scene.width / 2 - w / 2 | 0;
-    });
-  },
+    create: function () {
+      this.shape = this.shapes[(Math.random() * this.shapes.length) | 0];
 
-  dimens: function() {
-    var xs = [],
-        ys = [];
+      this.calcSize();
 
-    this.shape.forEach(function (unit) {
-      xs.push(unit.x);
-      ys.push(unit.y);
-    });
+      this.resetXYs();
+    },
 
-    this.w = Math.max.apply(null, xs) - Math.min.apply(null, xs) + 1;
-    this.h = Math.max.apply(null, ys) - Math.min.apply(null, ys) + 1;
-  },
+    // 计算形状尺寸
+    calcSize: function() {
+      var xs = [],
+          ys = [];
 
-  coords: function() {
-    var x = 0,
-        y = 0;
-
-    this.shape.forEach(function (unit) {
-      x += unit.x;
-      y += unit.y;
-    });
-
-    this.x = Math.round(x / 4);
-    this.y = Math.round(y / 4);
-
-    this.xFix = (x % 4) === 2 ? -1 : 0;
-  },
-
-  rotate: function(clockwise) {
-    this.coords();
-
-    var x = this.x,
-        y = this.y,
-        xFix = this.xFix,
-
-        shape = [],
-        valid = true;
-
-    this.shape.forEach(function (unit) {
-      var _x = unit.x,
-          _y = unit.y;
-
-      var nx = x - (_y - y) + xFix,
-          ny = y + (_x - x);
-
-      if (nx < 0 || ny < 0 || nx >= scene.width || ny >= scene.height) {
-        valid = false;
-        return false;
-      }
-
-      shape.push({
-        x: nx,
-        y: ny
+      this.shape.forEach(function (unit) {
+        xs.push(unit.x);
+        ys.push(unit.y);
       });
-    });
 
-    if (valid) {
-      this.erase();
+      this.width = Math.max.apply(null, xs) -
+                  Math.min.apply(null, xs) + 1;
 
+      this.height = Math.max.apply(null, ys) -
+                  Math.min.apply(null, ys) + 1;
+    },
+
+    // 根据舞台宽度，定位方块位置（居中）
+    resetXYs: function () {
+
+      var valid = true,
+          stage = this.stage,
+          grid = stage.grid,
+          halfOfStageWidth = stage.width / 2,
+          halfOfShapeWidth = this.width / 2 | 0,
+          shape = [];
+
+      this.shape.forEach(function (unit) {
+        var x = unit.x + halfOfStageWidth - halfOfShapeWidth,
+            y = unit.y;
+
+        // 一生出来就撞到，游戏结束
+        if (stage.checkFlagged(y, x)) {
+          valid = false;
+        }
+
+        shape.push({ x: x, y: y });
+      });
+
+      // 重新赋值，切断引用
       this.shape = shape;
 
       this.render();
-    }
-  },
 
-  movedown: function () {
-    var valid = true;
-
-    this.shape.forEach(function (unit) {
-      if (unit.y >= scene.height - 1) {
-        valid = false;
-        return false;
+      if (!valid) {
+        this.crash();
+      } else {
+        this.ticktock();
       }
-    });
+    },
 
-    if (valid) {
-      this.erase();
+    ticktock: function () {
+      var movedown = this.movedown.bind(this);
+
+      if (this.timeout) {
+        window.clearTimeout(this.timeout);
+      }
+
+      this.timeout = window.setTimeout(movedown, 1000 / this.stage.speed);
+    },
+
+    rotate: function(clockwise) {
+      var x = 0,
+          y = 0,
+          xFix,
+
+          shape = [],
+          valid = true,
+
+          stage = this.stage,
+          grid = stage.grid,
+          width = stage.width,
+          height = stage.height;
 
       this.shape.forEach(function (unit) {
-        unit.y++;
+        x += unit.x;
+        y += unit.y;
       });
 
-      this.render();
-    }
-  },
+      x = Math.round(x / 4);
+      y = Math.round(y / 4);
 
-  moveleft: function () {
-    var valid = true;
-
-    this.shape.forEach(function (unit) {
-      if (unit.x <= 0) {
-        valid = false;
-        return false;
-      }
-    });
-
-    if (valid) {
-      this.erase();
+      xFix = (x % 4) === 2 ? -1 : 0;
 
       this.shape.forEach(function (unit) {
-        unit.x--;
+        var _x = unit.x,
+            _y = unit.y;
+
+        var nx = x - (_y - y) + xFix,
+            ny = y + (_x - x);
+
+        if (stage.checkInValid(ny, nx)) {
+          valid = false;
+          return false;
+        }
+
+        shape.push({
+          x: nx,
+          y: ny
+        });
       });
 
-      this.render();
-    }
-  },
+      if (valid) {
+        this.erase();
 
-  moveright: function () {
-    var valid = true;
+        this.shape = shape;
 
-    this.shape.forEach(function (unit) {
-      if (unit.x >= scene.width - 1) {
-        valid = false;
-        return false;
+        this.render();
       }
-    });
+    },
 
-    if (valid) {
-      this.erase();
+    movedown: function () {
+      if (!this.stage.playing) {
+        this.ticktock();
+        return;
+      }
+
+      var valid = true;
+
+      var stage = this.stage;
 
       this.shape.forEach(function (unit) {
-        unit.x++;
+        if (stage.checkInValid(unit.y + 1, unit.x)) {
+          valid = false;
+          return false;
+        }
       });
 
-      this.render();
+      if (!valid) {
+        this.freeze();
+      } else {
+        this.erase();
+
+        this.shape.forEach(function (unit) {
+          unit.y++;
+        });
+
+        this.render();
+
+        this.ticktock();
+      }
+    },
+
+    moveleft: function () {
+      var valid = true;
+
+      var stage = this.stage;
+
+      this.shape.forEach(function (unit) {
+        if (stage.checkInValid(unit.y, unit.x - 1)) {
+          valid = false;
+          return false;
+        }
+      });
+
+      if (valid) {
+        this.erase();
+
+        this.shape.forEach(function (unit) {
+          unit.x--;
+        });
+
+        this.render();
+      }
+    },
+
+    moveright: function () {
+      var valid = true;
+
+      var stage = this.stage;
+
+      this.shape.forEach(function (unit) {
+        if (stage.checkInValid(unit.y, unit.x + 1)) {
+          valid = false;
+          return false;
+        }
+      });
+
+      if (valid) {
+        this.erase();
+
+        this.shape.forEach(function (unit) {
+          unit.x++;
+        });
+
+        this.render();
+      }
+    },
+
+    erase: function () {
+      this.stage.erase(this.shape);
+    },
+
+    render: function () {
+      this.stage.render(this.shape);
+    },
+
+    freeze: function () {
+      this.stage.freeze(this.shape);
+      this.destroy();
+    },
+
+    crash: function () {
+      this.stage.stop();
+      this.destroy();
+    },
+
+    destroy: function () {
+      if (this.timeout) {
+        window.clearTimeout(this.timeout);
+      }
+
+      for (var p in this) {
+        delete this[p];
+      }
+
+      this.destroy = function () {};
+
+      this.destroied = true;
     }
-  },
 
-  erase: function () {
-    scene.erase(this.shape);
-  },
+  });
 
-  render: function () {
-    scene.render(this.shape);
-  }
+  var Stage = Class.create({
 
-};
+    flagColor: (function () {
+            var r, g, b;
 
-var Scene = function() {
-  return this.init();
-}
+            r = Math.random() * 255 | 0;
+            g = Math.random() * (255 - r) | 0;
+            b = Math.random() * (255 - r - g) | 0;
 
-Scene.prototype = {
+            return 'rgb(' + r + ',' + g + ',' + b + ')';
+          })(),
 
-  init: function(width, height) {
-    var table = document.getElementById('sceneTable'),
-        i, j,
-        tbody = document.createElement('tbody'),
-        tr, td;
+    transparent: 'transparent',
 
-    width || (width = 10);
-    height || (height = 20);
+    speed: 5,
 
-    for (i = 0; i < height; i++) {
-      tr = tbody.insertRow();
-      for (j = 0; j < width; j++) {
-        tr.insertCell();
+    score: 0,
+
+    pendingScore: 0,
+
+    scoreArray: [0, 1, 3, 5, 10],
+
+    init: function (width, height) {
+
+      this.width = width;
+      this.height = height;
+
+      this.initBody();
+
+      this.initEvent();
+    },
+
+    initBody: function () {
+      var table = document.createElement('table'),
+          tbody = document.createElement('tbody'),
+          tr, i, j;
+
+      for (i = 0; i < this.height; i++) {
+        tr = tbody.insertRow();
+        for (j = 0; j < this.width; j++) {
+          tr.insertCell();
+        }
       }
+
+      table.tabIndex = -1;
+
+      table.border = 1;
+      table.cellPadding = 10;
+      table.cellSpacing = 0;
+
+      table.appendChild(tbody);
+
+      document.body.appendChild(table);
+
+      this.grid = tbody.rows;
+      this.body = table;
+    },
+
+    bindEvent: function (eventName, callback) {
+      this.body.addEventListener(eventName, callback.bind(this), false);
+    },
+
+    initEvent: function () {
+      // 焦点
+      this.bindEvent('focus', this.start);
+      this.bindEvent('blur', this.pause);
+
+      // 按键
+      this.bindEvent('keydown', function (e) {
+        if (!this.shape || this.shape.destroied) {
+          return;
+        }
+
+        switch(e.keyCode){
+          case 37:
+            this.shape.moveleft();
+            break;
+          case 38:
+            this.shape.rotate();
+            break;
+          case 39:
+            this.shape.moveright();
+            break;
+          case 40:
+            this.shape.movedown();
+            break;
+        }
+      });
+    },
+
+    checkInValid: function (y, x) {
+      return this.checkOverflow(y, 'T') ||
+            this.checkOverflow(y, 'B') ||
+            this.checkOverflow(x, 'L') ||
+            this.checkOverflow(x, 'R') ||
+            this.checkFlagged(y, x);
+    },
+
+    checkFlagged: function (y, x) {
+      return this.grid[y].cells[x].flagged === true;
+    },
+
+    checkOverflow: function (n, d) {
+      if (d === 'T' || d === 'L') {
+        return n < 0;
+      }
+      if (d === 'R') {
+        return n >= this.width;
+      }
+      if (d === 'B') {
+        return n >= this.height;
+      }
+    },
+
+    clear: function () {
+      var i, j;
+
+      for (i = 0; i < this.height; i++) {
+        for (j = 0; j < this.width; j++) {
+          this.unfill(i, y);
+          this.unflag(i, y);
+        }
+      }
+    },
+
+    createShape: function () {
+      // 方块
+      this.shape = new Shape(this);
+    },
+
+    start: function () {
+      if (this.shape) {
+        this.resume();
+      } else {
+        this.playing = true;
+        this.createShape();
+      }
+    },
+
+    stop: function () {
+      this.pause();
+
+      if (this.shape) {
+        this.shape.destroy();
+        delete this.shape;
+      }
+    },
+
+    pause: function () {
+      this.playing = false;
+    },
+
+    resume: function () {
+      this.playing = true;
+    },
+
+    erase: function (shape) {
+      var unfill = this.unfill.bind(this);
+
+      shape.forEach(function (unit) {
+        unfill(unit.y, unit.x);
+      });
+    },
+
+    render: function (shape) {
+      var fill = this.fill.bind(this);
+      shape.forEach(function (unit, i) {
+        fill(unit.y, unit.x, i);
+      });
+    },
+
+    checkLine: function (y) {
+      var i;
+
+      for (i = 0; i < this.width; i++) {
+        if (!this.checkFlagged(y, i)) {
+          return;
+        }
+      }
+
+      this.clearLine(y);
+    },
+
+    clearLine: function (y) {
+      var i;
+
+      for (i = 0; i < this.width; i++) {
+        this.unfill(y, i);
+        this.unflag(y, i);
+      }
+
+      // 下移
+      while (--y >= 0) {
+        for (i = 0; i < this.width; i++) {
+          if (this.checkFlagged(y, i)) {
+            this.unfill(y, i);
+            this.unflag(y, i);
+            this.fill(y + 1, i);
+            this.flag(y + 1, i);
+          }
+        }
+      }
+
+      this.pendingScore++;
+    },
+
+    fill: function (y, x, i) {
+      this.grid[y].cells[x].style.backgroundColor = this.flagColor;
+    },
+
+    unfill: function (y, x) {
+      this.grid[y].cells[x].style.backgroundColor = this.transparent;
+    },
+
+    flag: function (y, x) {
+      this.grid[y].cells[x].flagged = true;
+
+      // 检查是否可消除
+      this.checkLine(y);
+    },
+
+    unflag: function (y, x) {
+      this.grid[y].cells[x].flagged = false;
+    },
+
+    freeze: function (shape) {
+      var flag = this.flag.bind(this);
+
+      shape.sort(function(a, b){ return a.y > b.y; })
+      .forEach(function (unit) {
+        flag(unit.y, unit.x);
+      });
+
+      if (this.pendingScore) {
+        this.score += this.scoreArray[this.pendingScore];
+
+        document.querySelector('#score').textContent = this.score;
+
+        this.pendingScore = 0;
+      }
+
+      this.createShape();
     }
 
-    table.appendChild(tbody);
+  });
 
-    this.rows = tbody.rows;
+  var Tetris = Class.create({
 
-    this.width = width;
-    this.height = height;
+    init: function () {
+      new Stage(10, 20);
+    }
 
-    return this;
-  },
+  });
 
-  timer: function () {
-    setInterval(function () {
-      if (shape) {
-        shape.movedown();
-      }
-    }, 1000)
-  },
+  window.Tetris = Tetris;
 
-  erase: function(shape) {
-    var scene = this;
-
-    shape.forEach(function (unit) {
-      if (unit.x >= 0 && unit.y >= 0) {
-        scene.rows[unit.y].cells[unit.x].style.backgroundColor = 'transparent';
-      }
-    });
-  },
-
-  render: function(shape) {
-    var scene = this,
-        colors = ['red', 'green', 'blue', 'black'], i = 0;
-
-    shape.forEach(function (unit) {
-      if (unit.x >= 0 && unit.y >= 0) {
-        scene.rows[unit.y].cells[unit.x].style.backgroundColor = colors[i++];
-      }
-    });
-  }
-
-};
-
-// var scene = document.getElementById('scene');
-
-var shape, scene;
+})(this);
 
 window.onload = function () {
-  scene = new Scene();
-  shape = new Shape();
-};
-
-document.onkeydown = function keyControl(e) {
-  if (!shape) {
-    shape = new Shape(2);
-  }
-
-  switch(e.keyCode){
-    case 37:
-      shape.moveleft();
-      break;
-    case 38:
-      shape.rotate();
-      break;
-    case 39:
-      shape.moveright();
-      break;
-    case 40:
-      shape.movedown();
-      break;
-  }
-
-  // console.log(shape.shape[0], shape.shape[1], shape.shape[2], shape.shape[3], shape.x, shape.y);
+  new Tetris();
 };
 </script>
 </head>
 <body>
-<input type="button" value="begin" onclick="begin(this);"/>
-Score: <span id="score"> 0</span>
-
-<table id="sceneTable" cellpadding="10" border="1"></table>
+<span id="score"> 0 </span>
 </body>
 </html>
