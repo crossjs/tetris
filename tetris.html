@@ -3,6 +3,21 @@
 <head>
 <meta charset="utf-8">
 <title></title>
+<style>
+body {
+  text-align: center;
+  background-color: #eee;
+}
+span {
+  display: inline-block;
+  margin: 5px 10px;
+}
+canvas {
+  border: 5px solid black;
+  outline: none;
+  background-color: white;
+}
+</style>
 <script>
 (function (window, undefined) {
   var Class = {
@@ -78,7 +93,7 @@
 
       var valid = true,
           stage = this.stage,
-          grid = stage.grid,
+          flags = stage.flags,
           halfOfStageWidth = stage.width / 2,
           halfOfShapeWidth = this.width / 2 | 0,
           shape = [];
@@ -126,7 +141,7 @@
           valid = true,
 
           stage = this.stage,
-          grid = stage.grid,
+          flags = stage.flags,
           width = stage.width,
           height = stage.height;
 
@@ -281,64 +296,58 @@
 
   var Stage = Class.create({
 
-    flagColor: (function () {
-            var r, g, b;
-
-            r = Math.random() * 255 | 0;
-            g = Math.random() * (255 - r) | 0;
-            b = Math.random() * (255 - r - g) | 0;
-
-            return 'rgb(' + r + ',' + g + ',' + b + ')';
-          })(),
-
-    transparent: 'transparent',
-
-    speed: 5,
+    speed: 1,
 
     score: 0,
 
-    pendingScore: 0,
+    pendingLines: 0,
 
-    scoreArray: [0, 1, 3, 5, 10],
+    lineWeight: [0, 1, 3, 5, 10],
 
-    init: function (width, height) {
-
+    init: function (width, height, unit) {
       this.width = width;
       this.height = height;
 
-      this.initBody();
+      this.unit = unit || 20;
 
+      this.initBody();
+      this.initFlags();
       this.initEvent();
     },
 
     initBody: function () {
-      var table = document.createElement('table'),
-          tbody = document.createElement('tbody'),
-          tr, i, j;
+      var div = document.createElement('div'),
+        canvas = this.canvas = document.createElement('canvas'),
+        ctx2d = this.ctx2d = canvas.getContext('2d');
 
-      for (i = 0; i < this.height; i++) {
-        tr = tbody.insertRow();
-        for (j = 0; j < this.width; j++) {
-          tr.insertCell();
+      canvas.width = this.width * this.unit;
+      canvas.height = this.height * this.unit;
+
+      ctx2d.fillStyle = 'black';
+      ctx2d.lineWidth = 1;
+      ctx2d.strokeStyle = 'white';
+
+      canvas.tabIndex = -1;
+
+      div.appendChild(canvas);
+
+      document.body.appendChild(div);
+    },
+
+    initFlags: function () {
+      var i, j,
+        flags = this.flags = [];
+
+      for (j = 0; j < this.height; j++) {
+        flags[j] = [];
+        for (i = 0; i < this.width; i++) {
+          flags[j][i] = 0;
         }
       }
-
-      table.tabIndex = -1;
-
-      table.border = 1;
-      table.cellPadding = 10;
-      table.cellSpacing = 0;
-
-      table.appendChild(tbody);
-
-      document.body.appendChild(table);
-
-      this.grid = tbody.rows;
-      this.body = table;
     },
 
     bindEvent: function (eventName, callback) {
-      this.body.addEventListener(eventName, callback.bind(this), false);
+      this.canvas.addEventListener(eventName, callback.bind(this), false);
     },
 
     initEvent: function () {
@@ -353,17 +362,25 @@
         }
 
         switch(e.keyCode){
+          case 32:
+            this.shape.movedown(true);
+            e.preventDefault();
+            break;
           case 37:
             this.shape.moveleft();
+            e.preventDefault();
             break;
           case 38:
             this.shape.rotate();
+            e.preventDefault();
             break;
           case 39:
             this.shape.moveright();
+            e.preventDefault();
             break;
           case 40:
             this.shape.movedown();
+            e.preventDefault();
             break;
         }
       });
@@ -378,7 +395,7 @@
     },
 
     checkFlagged: function (y, x) {
-      return this.grid[y].cells[x].flagged === true;
+      return this.flags[y][x] === 1;
     },
 
     checkOverflow: function (n, d) {
@@ -393,26 +410,16 @@
       }
     },
 
-    clear: function () {
-      var i, j;
-
-      for (i = 0; i < this.height; i++) {
-        for (j = 0; j < this.width; j++) {
-          this.unfill(i, y);
-          this.unflag(i, y);
-        }
-      }
-    },
-
     createShape: function () {
       // 方块
       this.shape = new Shape(this);
     },
 
     start: function () {
-      if (this.shape) {
+      if (this.shape && !this.shape.destroied) {
         this.resume();
       } else {
+        this.reset();
         this.playing = true;
         this.createShape();
       }
@@ -435,18 +442,28 @@
       this.playing = true;
     },
 
+    reset: function () {
+      this.initFlags();
+
+      this.setScore(0);
+      this.setSpeed();
+
+      this.ctx2d.clearRect(0, 0, this.width * this.unit, this.height * this.unit);
+    },
+
     erase: function (shape) {
-      var unfill = this.unfill.bind(this);
+      var fill = this.fill.bind(this);
 
       shape.forEach(function (unit) {
-        unfill(unit.y, unit.x);
+        fill(unit.y, unit.x, 0);
       });
     },
 
     render: function (shape) {
       var fill = this.fill.bind(this);
-      shape.forEach(function (unit, i) {
-        fill(unit.y, unit.x, i);
+
+      shape.forEach(function (unit) {
+        fill(unit.y, unit.x, 1);
       });
     },
 
@@ -466,42 +483,47 @@
       var i;
 
       for (i = 0; i < this.width; i++) {
-        this.unfill(y, i);
-        this.unflag(y, i);
+        this.fill(y, i, 0);
+        this.flag(y, i, 0);
       }
 
       // 下移
       while (--y >= 0) {
         for (i = 0; i < this.width; i++) {
           if (this.checkFlagged(y, i)) {
-            this.unfill(y, i);
-            this.unflag(y, i);
-            this.fill(y + 1, i);
-            this.flag(y + 1, i);
+            this.fill(y, i, 0);
+            this.flag(y, i, 0);
+            this.fill(y + 1, i, 1);
+            this.flag(y + 1, i, 1);
           }
         }
       }
 
-      this.pendingScore++;
+      this.pendingLines++;
     },
 
-    fill: function (y, x, i) {
-      this.grid[y].cells[x].style.backgroundColor = this.flagColor;
+    fill: function (y, x, flag) {
+      var unit = this.unit,
+        ctx2d = this.ctx2d;
+
+      if (flag) {
+        ctx2d.beginPath();
+        ctx2d.rect(x * unit, y * unit, unit, unit);
+        ctx2d.fill();
+        ctx2d.stroke();
+        ctx2d.closePath();
+      } else {
+        ctx2d.clearRect(x * unit, y * unit, unit, unit);
+      }
     },
 
-    unfill: function (y, x) {
-      this.grid[y].cells[x].style.backgroundColor = this.transparent;
-    },
+    flag: function (y, x, flag) {
+      this.flags[y][x] = flag;
 
-    flag: function (y, x) {
-      this.grid[y].cells[x].flagged = true;
-
-      // 检查是否可消除
-      this.checkLine(y);
-    },
-
-    unflag: function (y, x) {
-      this.grid[y].cells[x].flagged = false;
+      if (flag) {
+        // 检查是否可消除
+        this.checkLine(y);
+      }
     },
 
     freeze: function (shape) {
@@ -509,18 +531,33 @@
 
       shape.sort(function(a, b){ return a.y > b.y; })
       .forEach(function (unit) {
-        flag(unit.y, unit.x);
+        flag(unit.y, unit.x, 1);
       });
 
-      if (this.pendingScore) {
-        this.score += this.scoreArray[this.pendingScore];
+      if (this.pendingLines) {
+        this.score += this.lineWeight[this.pendingLines];
 
-        document.querySelector('#score').textContent = this.score;
+        this.setScore();
 
-        this.pendingScore = 0;
+        this.pendingLines = 0;
+
+        this.setSpeed();
       }
 
       this.createShape();
+    },
+
+    setScore: function (score) {
+      if (typeof score !== 'undefined') {
+        this.score = score;
+      }
+
+      document.querySelector('#score').textContent = this.score;
+    },
+
+    setSpeed: function () {
+      this.speed = (this.score / 10 | 0) + 1;
+      document.querySelector('#speed').textContent = this.speed;
     }
 
   });
@@ -528,12 +565,12 @@
   var Tetris = Class.create({
 
     init: function () {
-      new Stage(10, 20);
+      new Stage(10, 20, 30);
     }
 
   });
 
-  window.Tetris = Tetris;
+  this.Tetris = Tetris;
 
 })(this);
 
@@ -543,6 +580,9 @@ window.onload = function () {
 </script>
 </head>
 <body>
-<span id="score"> 0 </span>
+<div>
+  <span>Score: <span id="score"> 0 </span></span>
+  <span>Speed: <span id="speed"> 1 </span></span>
+</div>
 </body>
 </html>
